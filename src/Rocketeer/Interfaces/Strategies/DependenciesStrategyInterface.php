@@ -1,4 +1,5 @@
 <?php
+
 /*
  * This file is part of Rocketeer
  *
@@ -6,22 +7,24 @@
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
+ *
  */
+
 namespace Rocketeer\Interfaces\Strategies;
 
 interface DependenciesStrategyInterface
 {
-	/**
-	 * Install the dependencies
-	 *
-	 * @return boolean
-	 */
-	public function install();
+    /**
+     * Install the dependencies.
+     *
+     * @return bool
+     */
+    public function install();
 
-	/**
-	 * Update the dependencies
-	 *
-	 * @return boolean
-	 */
-	public function update();
+    /**
+     * Update the dependencies.
+     *
+     * @return bool
+     */
+    public function update();
 }

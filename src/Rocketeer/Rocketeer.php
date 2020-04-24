@@ -1,4 +1,5 @@
 <?php
+
 /*
  * This file is part of Rocketeer
  *
@@ -6,139 +7,154 @@
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
+ *
  */
+
 namespace Rocketeer;
 
 use Rocketeer\Traits\HasLocator;
 
 /**
  * Handles interaction between the User provided informations
- * and the various Rocketeer components
+ * and the various Rocketeer components.
  *
  * @author Maxime Fabre <ehtnam6@gmail.com>
  */
 class Rocketeer
 {
-	use HasLocator;
+    use HasLocator;
 
-	/**
-	 * The Rocketeer version
-	 *
-	 * @var string
-	 */
-	const VERSION = '2.0.4';
+    /**
+     * The Rocketeer version.
+     *
+     * @var string
+     */
+    const VERSION = '2.2.5';
 
-	/**
-	 * Global local mode
-	 *
-	 * @type boolean
-	 */
-	protected $local = false;
+    /**
+     * The specific commit built.
+     */
+    const COMMIT = '@commit@';
 
-	/**
-	 * Returns what stage Rocketeer thinks he's in
-	 *
-	 * @param string      $application
-	 * @param string|null $path
-	 *
-	 * @return string|false
-	 */
-	public static function getDetectedStage($application = 'application', $path = null)
-	{
-		$current = $path ?: realpath(__DIR__);
-		preg_match('/'.$application.'\/([a-zA-Z0-9_-]+)\/releases\/([0-9]{14})/', $current, $matches);
+    /**
+     * Global local mode.
+     *
+     * @var bool
+     */
+    protected $local = false;
 
-		return isset($matches[1]) ? $matches[1] : false;
-	}
+    /**
+     * Returns what stage Rocketeer thinks he's in.
+     *
+     * @param string      $application
+     * @param string|null $path
+     *
+     * @return string|false
+     */
+    public static function getDetectedStage($application = 'application', $path = null)
+    {
+        $current = $path ?: realpath(__DIR__);
+        preg_match('/'.$application.'\/([a-zA-Z0-9_-]+)\/releases\/([0-9]{14})/', $current, $matches);
 
-	//////////////////////////////////////////////////////////////////////
-	/////////////////////////////// LOCAL ////////////////////////////////
-	//////////////////////////////////////////////////////////////////////
+        return isset($matches[1]) ? $matches[1] : false;
+    }
 
-	/**
-	 * @return boolean
-	 */
-	public function isLocal()
-	{
-		return $this->local;
-	}
+    //////////////////////////////////////////////////////////////////////
+    /////////////////////////////// LOCAL ////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
 
-	/**
-	 * @param boolean $local
-	 */
-	public function setLocal($local)
-	{
-		$this->local = $local;
-	}
+    /**
+     * @return bool
+     */
+    public function isLocal()
+    {
+        return $this->local;
+    }
 
-	//////////////////////////////////////////////////////////////////////
-	//////////////////////////// CONFIGURATION ///////////////////////////
-	//////////////////////////////////////////////////////////////////////
+    /**
+     * @param bool $local
+     */
+    public function setLocal($local)
+    {
+        $this->local = $local;
+    }
 
-	/**
-	 * Get the name of the application to deploy
-	 *
-	 * @return string
-	 */
-	public function getApplicationName()
-	{
-		return $this->config->get('rocketeer::application_name');
-	}
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////// CONFIGURATION ///////////////////////////
+    //////////////////////////////////////////////////////////////////////
 
-	/**
-	 * Get an option from Rocketeer's config file
-	 *
-	 * @param string $option
-	 *
-	 * @return string|array|Closure
-	 */
-	public function getOption($option)
-	{
-		$original = $this->config->get('rocketeer::'.$option);
+    /**
+     * Get the name of the application to deploy.
+     *
+     * @return string
+     */
+    public function getApplicationName()
+    {
+        return $this->config->get('rocketeer::application_name');
+    }
 
-		if ($contextual = $this->getContextualOption($option, 'stages', $original)) {
-			return $contextual;
-		}
+    /**
+     * Get an option from Rocketeer's config file.
+     *
+     * @param string $option
+     *
+     * @return string|array|Closure
+     */
+    public function getOption($option)
+    {
+        $original = $this->config->get('rocketeer::'.$option);
 
-		if ($contextual = $this->getContextualOption($option, 'connections', $original)) {
-			return $contextual;
-		}
+        if ($contextual = $this->getContextualOption($option, 'stages', $original)) {
+            return $contextual;
+        }
 
-		return $original;
-	}
+        if ($contextual = $this->getContextualOption($option, 'connections', $original)) {
+            return $contextual;
+        }
 
-	/**
-	 * Get a contextual option
-	 *
-	 * @param string            $option
-	 * @param string            $type [stage,connection]
-	 * @param string|array|null $original
-	 *
-	 * @return string|array|\Closure
-	 */
-	protected function getContextualOption($option, $type, $original = null)
-	{
-		// Switch context
-		switch ($type) {
-			case 'stages':
-				$contextual = sprintf('rocketeer::on.stages.%s.%s', $this->connections->getStage(), $option);
-				break;
+        if ($contextual = $this->getContextualOption($option, 'servers', $original)) {
+            return $contextual;
+        }
 
-			case 'connections':
-				$contextual = sprintf('rocketeer::on.connections.%s.%s', $this->connections->getConnection(), $option);
-				break;
+        return $original;
+    }
 
-			default:
-				$contextual = sprintf('rocketeer::%s', $option);
-				break;
-		}
+    /**
+     * Get a contextual option.
+     *
+     * @param string            $option
+     * @param string            $type     [stage,connection]
+     * @param string|array|null $original
+     *
+     * @return string|array|\Closure
+     */
+    protected function getContextualOption($option, $type, $original = null)
+    {
+        // Switch context
+        switch ($type) {
+            case 'servers':
+                $contextual = sprintf('rocketeer::connections.%s.servers.%d.config.%s', $this->connections->getConnection(), $this->connections->getServer(), $option);
+                break;
 
-		// Merge with defaults
-		$value = $this->config->get($contextual);
-		if (is_array($value) && $original) {
-			$value = array_replace($original, $value);
-		}
+            case 'stages':
+                $contextual = sprintf('rocketeer::on.stages.%s.%s', $this->connections->getStage(), $option);
+                break;
 
-		return $value;
-	}
+            case 'connections':
+                $contextual = sprintf('rocketeer::on.connections.%s.%s', $this->connections->getConnection(), $option);
+                break;
+
+            default:
+                $contextual = sprintf('rocketeer::%s', $option);
+                break;
+        }
+
+        // Merge with defaults
+        $value = $this->config->get($contextual);
+        if (is_array($value) && $original) {
+            $value = array_replace($original, $value);
+        }
+
+        return $value;
+    }
 }
